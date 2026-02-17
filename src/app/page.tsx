@@ -303,6 +303,44 @@ export default function FitascApp() {
     setRankings({ superCupa: [], general: [] });
   };
 
+  // Load player history when selected player changes
+  const resolvedPersonId = (() => {
+    if (selectedPlayerId) {
+      const p = ALL_PLAYERS.find(pl => pl.PersonId === selectedPlayerId);
+      return p?.PersonId || null;
+    }
+    if (userName) {
+      const byName = ALL_PLAYERS.find(
+        p => p.Person.toLowerCase() === userName.toLowerCase()
+      );
+      if (byName) return byName.PersonId;
+      const parts = userName.toLowerCase().split(/\s+/);
+      if (parts.length >= 2) {
+        const partial = ALL_PLAYERS.find(p => {
+          const pParts = p.Person.toLowerCase().split(/\s+/);
+          return parts.every(part => pParts.some(pp => pp.includes(part)));
+        });
+        if (partial) return partial.PersonId;
+      }
+    }
+    return null;
+  })();
+
+  useEffect(() => {
+    if (!resolvedPersonId || !isLoggedIn) {
+      setPlayerHistory(null);
+      return;
+    }
+    setHistoryLoading(true);
+    fetch(`/api/history?personId=${resolvedPersonId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (!data.error) setPlayerHistory(data);
+      })
+      .catch(() => {})
+      .finally(() => setHistoryLoading(false));
+  }, [resolvedPersonId, isLoggedIn]);
+
   // Load competition result
   const loadCompetitionResult = async (id: number) => {
     setSelectedCompetition(id);
@@ -483,22 +521,6 @@ export default function FitascApp() {
         p.Person.toLowerCase().includes(nameSearch.toLowerCase())
       ).slice(0, 10)
     : [];
-
-  // Load player history when currentPlayer changes
-  useEffect(() => {
-    if (!currentPlayer || !isLoggedIn) {
-      setPlayerHistory(null);
-      return;
-    }
-    setHistoryLoading(true);
-    fetch(`/api/history?personId=${currentPlayer.PersonId}`)
-      .then(r => r.json())
-      .then(data => {
-        if (!data.error) setPlayerHistory(data);
-      })
-      .catch(() => {})
-      .finally(() => setHistoryLoading(false));
-  }, [currentPlayer?.PersonId, isLoggedIn]);
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: "profil", label: "Profilul Meu", icon: <UserIcon className="w-4 h-4" /> },
